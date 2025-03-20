@@ -42,6 +42,7 @@ struct VFuncPtr
     this_adj >>= 1;
   #else
     vtable_slot &= ~1;
+    vtable_slot /= sizeof(void*);
   #endif
   }
 };

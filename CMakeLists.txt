@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.31)
 
-project(vtable-hook VERSION 0.1.1)
+project(vtable-hook VERSION 0.2.0)
 
 #Require C++23 without compiler extensions
 set(CMAKE_CXX_STANDARD 23)

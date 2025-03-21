@@ -1,42 +1,26 @@
 #pragma once
 
 #include <cstdint>
+#include <cstring>
 #include <bit>
 #include <stdexcept>
+
+//Force full info in pointer to member function representation
+//It is recomended to include this header in separate translation unit and after all other includes
+#pragma pointers_to_members(full_generality, virtual_inheritance)
 
 namespace vthk::details{
 namespace {
 
 //There is no official doc, but there is good article
 //https://rants.vastheman.com/2021/09/21/msvc/
-struct MemberFunctionPointer1
+struct MemberFunctionPointer
 {
   std::uintptr_t fnptr;
+  int adj;    // this pointer displacement in bytes
+  int vadj;   // offset to vptr or undefined
+  int vindex; // byte offset to base class offset in vtable or zero
 };
-
-struct MemberFunctionPointer2
-{
-  std::uintptr_t fnptr;
-  int this_adj;
-};
-
-struct MemberFunctionPointer3
-{
-  std::uintptr_t fnptr;
-  int this_adj;
-  int vbptr_off;
-};
-
-struct MemberFunctionPointer4
-{
-  std::uintptr_t fnptr;
-  int this_adj;
-  int vbptr_off;
-  int vb_adj;
-};
-
-template<typename >
-constexpr bool always_false_v = false;
 
 template<typename T, typename R, typename... Args>
 struct VFuncPtr
@@ -44,37 +28,25 @@ struct VFuncPtr
   std::size_t vtable_slot;
   std::ptrdiff_t this_adj;
 
-  VFuncPtr(R(T::*vfuncptr)(Args...))
+  VFuncPtr(const T* instance, R(T::*vfuncptr)(Args...))
   {
-    std::uintptr_t fnptr;
+    auto mfp = std::bit_cast<MemberFunctionPointer>(vfuncptr);
 
-    if constexpr(sizeof(vfuncptr) == sizeof(MemberFunctionPointer1))
+    std::uintptr_t fnptr = mfp.fnptr;
+
+    this_adj = 0;
+    if(mfp.vindex != 0)
     {
-      fnptr = std::bit_cast<MemberFunctionPointer1>(vfuncptr).fnptr;
-      this_adj = 0;
+      std::uintptr_t vptr_addr = reinterpret_cast<std::uintptr_t>(instance) + mfp.vadj;
+      std::uintptr_t vtable_addr;
+      std::memcpy(&vtable_addr, reinterpret_cast<const void*>(vptr_addr), sizeof(vtable_addr));
+
+      int vbase_offset;
+      std::memcpy(&vbase_offset, reinterpret_cast<const void*>(vtable_addr + mfp.vindex), sizeof(vbase_offset));
+
+      this_adj += mfp.vadj + vbase_offset;
     }
-    else if constexpr(sizeof(vfuncptr) == sizeof(MemberFunctionPointer2))
-    {
-      auto mfp = std::bit_cast<MemberFunctionPointer2>(vfuncptr);
-      fnptr = mfp.fnptr;
-      this_adj = mfp.this_adj;
-    }
-    else if constexpr(sizeof(vfuncptr) == sizeof(MemberFunctionPointer3))
-    {
-      auto mfp = std::bit_cast<MemberFunctionPointer3>(vfuncptr);
-      fnptr = mfp.fnptr;
-      this_adj = mfp.this_adj;
-    }
-    else if constexpr(sizeof(vfuncptr) == sizeof(MemberFunctionPointer4))
-    {
-      auto mfp = std::bit_cast<MemberFunctionPointer4>(vfuncptr);
-      fnptr = mfp.fnptr;
-      this_adj = mfp.this_adj;
-    }
-    else
-    {
-      static_assert(always_false_v<T>, "Unknown MemberFunctionPointer layout");
-    }
+    this_adj += mfp.adj;
 
     std::uint8_t* mem = reinterpret_cast<std::uint8_t*>(fnptr);
 

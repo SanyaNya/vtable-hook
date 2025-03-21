@@ -24,7 +24,7 @@ template<typename T, typename R, typename... Args>
 inline auto hook(const T* instance, R(T::*vfuncptr)(Args...), R(VTHK_CALL *hook)(T*, Args...)) -> R(VTHK_CALL *)(T*, Args...)
 {
   static_assert(std::is_polymorphic_v<T>, "Class does not have virtual functions");
-  details::VFuncPtr vfp(vfuncptr);
+  details::VFuncPtr vfp(instance, vfuncptr);
 
   std::uintptr_t* vtable;
   std::memcpy(&vtable, reinterpret_cast<const void*>(reinterpret_cast<std::uintptr_t>(instance) + vfp.this_adj), sizeof(vtable));

@@ -20,7 +20,7 @@ struct VFuncPtr
   std::size_t vtable_slot;
   std::ptrdiff_t this_adj;
 
-  constexpr VFuncPtr(R(T::*vfuncptr)(Args...))
+  constexpr VFuncPtr(const T*, R(T::*vfuncptr)(Args...))
   {
     MemberFunctionPointer mfp = std::bit_cast<MemberFunctionPointer>(vfuncptr);
 

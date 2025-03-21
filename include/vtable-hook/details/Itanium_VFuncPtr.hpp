@@ -39,6 +39,7 @@ struct VFuncPtr
 
     //normalize fields removing is_virtual flag
   #if defined(__arm__) && !defined(__aarch64__)
+    vtable_slot /= sizeof(void*);
     this_adj >>= 1;
   #else
     vtable_slot &= ~1;
